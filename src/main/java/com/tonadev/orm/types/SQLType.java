@@ -1,4 +1,4 @@
-package com.tonadev.orm;
+package com.tonadev.orm.types;
 
 public enum SQLType {
 	TEXT ("java.lang.String", "TEXT"),

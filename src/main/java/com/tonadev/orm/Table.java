@@ -1,29 +1,32 @@
 package com.tonadev.orm;
 
 import java.lang.reflect.Field;
-import java.lang.annotation.*;
 
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Enumeration;
 
-import com.tonadev.orm.Database;
-import com.tonadev.orm.SQLType;
+import com.tonadev.orm.types.Column;
+import com.tonadev.orm.types.SQLType;
 
 public abstract class Table {
+    public abstract Hashtable<String, String> toDict();
+
 	public static String getCreateSql(Class cls) {
 		String className = cls.getSimpleName().toLowerCase();
 		ArrayList<String> classFields = new ArrayList<String>();
-		String test = "Dont work";
 
 		try {
 			for (Field field : cls.getDeclaredFields()) {
-				String javaType = field.getGenericType().getTypeName();
 				Column fieldAnnotation = field.getAnnotation(Column.class);
 				String sqlType = fieldAnnotation.sqlType().getSqlType();
 
-				if (fieldAnnotation.primaryKey()) {
-						sqlType = sqlType.concat(" PRIMARY KEY AUTOINCREMENT");
+                if (fieldAnnotation.autoincrement()) {
+                    sqlType = sqlType.concat(" AUTO_INCREMENT"); 
+                }
+
+                if (fieldAnnotation.primaryKey()) {
+					sqlType = sqlType.concat(String.format(", PRIMARY KEY (%s)", field.getName()));
 				}
 
 				classFields.add(String.format("%s %s", field.getName(), sqlType));
@@ -55,7 +58,7 @@ public abstract class Table {
 				Field field = cls.getDeclaredField(key);
 				Column fieldAnnotation = field.getAnnotation(Column.class);
 				SQLType fieldType = fieldAnnotation.sqlType();
-				if (fieldType == SQLType.TEXT) {
+				if (fieldType.equals(SQLType.TEXT)) {
 					sqlFilters.add(String.format("%s = \"%s\"", key, value));
 				} else {
 					sqlFilters.add(String.format("%s = %s", key, value));
@@ -74,20 +77,24 @@ public abstract class Table {
 		ArrayList<String> classFields = new ArrayList<String>();
 		ArrayList<String> instanceValues = new ArrayList<String>();
 
+        Hashtable<String, String> data = this.toDict();
+
 		try {
 			for (Field field : this.getClass().getDeclaredFields()) {
+                Column fieldAnnotation = field.getAnnotation(Column.class);
+                if (fieldAnnotation.autoincrement()) {
+                    continue;
+                }
 				String fieldName = field.getName();
 
 				classFields.add(fieldName);
 
-				/* Get values
-				String fieldNameCapitalized = fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1);
-				String getFieldMethod = "get" + fieldNameCapitalized;
-				String value = (String) this.getClass().getDeclaredMethods(getFieldMethod).invoke(this, null);
-				instanceValues.add(value);
-				*/
-
-			}
+                if (fieldAnnotation.sqlType().equals(SQLType.TEXT)) {
+                    instanceValues.add(String.format("\"%s\"", data.get(fieldName)));
+                } else {
+                    instanceValues.add(data.get(fieldName));
+                }
+            }
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
